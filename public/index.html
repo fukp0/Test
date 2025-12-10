@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>𝙱𝙻𝙰𝙲𝙺 𝙿𝙰𝙽𝚃𝙷𝙴𝚁 𝙱𝙾𝚃 - 𝚆𝙰𝙺𝙰𝙽𝙳𝙰 𝙻𝙸𝙽𝙺</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #050507;
+            --card-bg: rgba(20, 20, 25, 0.92);
+            --modal-bg: rgba(10, 10, 15, 0.98);
+            --vibranium-purple: #7000ff;
+            --vibranium-blue: #3a86ff;
+            --vibranium-glow: #a347ff;
+            --silver: #e0e0e0;
+            --text-color: #ffffff;
+            --panther-gold: #fdd835;
+            --cyber-green: #00ff88;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(112, 0, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 20%, rgba(58, 134, 255, 0.15) 0%, transparent 40%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a1a1a' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; color: var(--text-color);
+            position: relative;
+        }
+
+        /* PARTICULES BACKGROUND */
+        #particles-js { position: absolute; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+        /* DECORATIONS HOLOGRAMME */
+        .hologram-line {
+            position: absolute; height: 1px; width: 100%;
+            background: linear-gradient(90deg, transparent, var(--vibranium-purple), transparent);
+            opacity: 0.2; pointer-events: none;
+        }
+
+        /* --- CARD STYLE --- */
+        .container { 
+            position: relative; width: 100%; max-width: 450px; padding: 20px; z-index: 10;
+            animation: slideUp 1s ease-out;
+        }
+        
+        .card {
+            background: var(--card-bg); 
+            border: 1px solid rgba(112, 0, 255, 0.3); 
+            border-radius: 20px; padding: 40px 30px;
+            box-shadow: 0 0 50px rgba(112, 0, 255, 0.2), inset 0 0 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(15px); text-align: center; position: relative; overflow: hidden;
+        }
+        
+        .card::before { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; 
+            background: linear-gradient(90deg, transparent, var(--vibranium-purple), var(--vibranium-blue), transparent); 
+            box-shadow: 0 0 20px var(--vibranium-glow); animation: scan 3s linear infinite;
+        }
+
+        .bp-svg { 
+            width: 80px; height: 80px; fill: var(--text-color); 
+            filter: drop-shadow(0 0 15px var(--vibranium-purple)); 
+            margin-bottom: 10px; animation: pulse 3s infinite;
+        }
+        
+        .title { 
+            font-size: 2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; 
+            background: linear-gradient(to right, #fff, var(--vibranium-glow));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle { color: var(--silver); font-size: 0.9rem; letter-spacing: 2px; opacity: 0.7; margin-top: 5px; }
+
+        .input-group { position: relative; margin-bottom: 25px; text-align: left; margin-top: 30px; }
+        .input-group label { display: block; margin-bottom: 8px; color: var(--vibranium-glow); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .input-field { 
+            width: 100%; padding: 15px 15px 15px 45px; 
+            background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(112, 0, 255, 0.3); 
+            border-radius: 8px; color: #fff; font-size: 1.1rem; letter-spacing: 1px; 
+            outline: none; transition: 0.3s; 
+        }
+        .input-field:focus { border-color: var(--vibranium-purple); box-shadow: 0 0 20px rgba(112, 0, 255, 0.3); transform: scale(1.02); }
+        .input-icon { position: absolute; left: 15px; bottom: 16px; color: var(--silver); opacity: 0.5; }
+
+        .btn-connect { 
+            width: 100%; padding: 15px; 
+            background: linear-gradient(135deg, #4a00e0, #8e2de2);
+            border: none; border-radius: 8px; color: white; 
+            font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; 
+            cursor: pointer; position: relative; overflow: hidden;
+            transition: 0.3s; box-shadow: 0 5px 15px rgba(112, 0, 255, 0.4);
+        }
+        .btn-connect:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(112, 0, 255, 0.6); }
+
+        .loader { display: none; margin-top: 15px; color: var(--vibranium-glow); font-size: 0.9rem; letter-spacing: 1px; }
+        .result-box { 
+            display: none; margin-top: 25px; background: rgba(0, 0, 0, 0.6); 
+            border: 1px solid var(--vibranium-purple); padding: 15px; border-radius: 8px; 
+            animation: fadeIn 0.5s ease;
+        }
+        .code-display { 
+            font-family: 'Courier New', monospace; font-size: 1.8rem; color: var(--panther-gold); 
+            font-weight: bold; letter-spacing: 5px; margin: 10px 0; 
+            text-shadow: 0 0 10px rgba(253, 216, 53, 0.6); word-break: break-all;
+        }
+        .copy-text { font-size: 0.8rem; color: var(--silver); cursor: pointer; text-decoration: underline; transition: 0.3s; }
+        .copy-text:hover { color: var(--vibranium-glow); }
+
+        .footer { margin-top: 20px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.3); text-transform: uppercase; letter-spacing: 2px; }
+        
+        .btn-owner { 
+            background: rgba(112, 0, 255, 0.1); border: 1px solid rgba(112, 0, 255, 0.4); 
+            color: var(--vibranium-glow); padding: 10px 20px; border-radius: 20px; 
+            font-size: 0.8rem; cursor: pointer; margin-top: 20px; 
+            transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-owner:hover { background: rgba(112, 0, 255, 0.3); border-color: var(--vibranium-glow); box-shadow: 0 0 20px rgba(112, 0, 255, 0.4); }
+
+        /* --- MODAL --- */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.9); z-index: 999; display: none; 
+            justify-content: center; align-items: center; backdrop-filter: blur(10px);
+            animation: fadeIn 0.3s;
+        }
+        .modal-card { 
+            background: var(--modal-bg); width: 95%; max-width: 400px; 
+            border: 1px solid var(--vibranium-purple); border-radius: 15px; 
+            padding: 25px; text-align: center; position: relative; 
+            box-shadow: 0 0 50px rgba(112, 0, 255, 0.3); 
+            animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            overflow: hidden; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--vibranium-glow), transparent); box-shadow: 0 0 15px var(--vibranium-glow); }
+        
+        .close-btn { 
+            position: absolute; top: 15px; right: 20px; color: var(--silver); 
+            font-size: 1.5rem; cursor: pointer; z-index: 5; transition: 0.3s;
+        }
+        .close-btn:hover { color: #ff4757; transform: rotate(90deg); }
+
+        /* LIST VIEW */
+        .section-label { 
+            color: var(--panther-gold); font-size: 0.75rem; letter-spacing: 2px; 
+            text-transform: uppercase; margin-bottom: 10px; text-align: left; 
+            margin-left: 10px; opacity: 0.9; position: relative; padding-left: 10px;
+        }
+        .section-label::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 4px; background: var(--panther-gold); border-radius: 50%; box-shadow: 0 0 5px var(--panther-gold); }
+
+        .profile-card { 
+            display: flex; align-items: center; background: rgba(255, 255, 255, 0.03); 
+            padding: 15px; border-radius: 12px; border: 1px solid rgba(112, 0, 255, 0.15); 
+            margin-bottom: 20px; transition: 0.4s; cursor: pointer; position: relative; 
+            overflow: hidden;
+        }
+        .profile-card:hover { border-color: var(--vibranium-glow); background: rgba(112, 0, 255, 0.1); transform: translateX(5px); }
+        .profile-card::after { content: '\f054'; font-family: "Font Awesome 5 Free"; font-weight: 900; position: absolute; right: 15px; color: var(--silver); opacity: 0.5; transition: 0.3s; }
+        .profile-card:hover::after { opacity: 1; transform: translateX(5px); color: var(--vibranium-glow); }
+        
+        .profile-avatar { 
+            width: 60px; height: 60px; border-radius: 50%; object-fit: cover; 
+            border: 2px solid var(--vibranium-purple); margin-right: 15px; 
+            box-shadow: 0 0 10px rgba(112, 0, 255, 0.3); transition: 0.3s;
+        }
+        .profile-card:hover .profile-avatar { border-color: var(--vibranium-glow); transform: rotate(10deg); }
+        
+        .profile-info { text-align: left; flex: 1; }
+        .profile-name { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .profile-role { font-size: 0.75rem; color: var(--silver); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* DETAIL VIEW */
+        #detailView { display: none; }
+        
+        .detail-avatar-container { width: 110px; height: 110px; margin: 0 auto 20px auto; position: relative; }
+        .detail-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--panther-gold); box-shadow: 0 0 20px rgba(253, 216, 53, 0.4); }
+        .detail-avatar-container::before { content: ''; position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px; border-radius: 50%; border: 1px solid transparent; border-top-color: var(--vibranium-purple); border-bottom-color: var(--vibranium-blue); animation: spin 3s linear infinite; }
+        
+        .detail-name { font-size: 1.6rem; font-weight: 700; color: #fff; text-transform: uppercase; margin-bottom: 5px; text-shadow: 0 0 10px rgba(112, 0, 255, 0.5); }
+        .detail-role { color: var(--vibranium-glow); font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; padding: 5px 15px; background: rgba(112, 0, 255, 0.1); border-radius: 20px; display: inline-block; }
+        .detail-bio { color: var(--silver); font-size: 0.9rem; line-height: 1.6; margin-bottom: 25px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; border-left: 3px solid var(--vibranium-purple); }
+
+        /* SOCIAL BUTTONS */
+        .social-buttons { display: flex; flex-direction: column; gap: 12px; }
+        .social-btn { 
+            display: flex; align-items: center; justify-content: center; padding: 14px; 
+            border-radius: 8px; text-decoration: none; color: white; font-weight: bold; 
+            font-size: 0.9rem; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); 
+            background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent);
+        }
+        .social-btn i { margin-right: 10px; font-size: 1.2rem; }
+        .social-btn:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.3); }
+
+        .btn-github:hover { background: #333; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .btn-insta:hover { background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d); box-shadow: 0 5px 20px rgba(225, 48, 108, 0.4); }
+        .btn-wa:hover { background: #25D366; box-shadow: 0 5px 20px rgba(37, 211, 102, 0.4); }
+
+        .back-btn { position: absolute; top: 15px; left: 20px; color: var(--silver); font-size: 1.2rem; cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.3s; }
+        .back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        /* PRELOADER */
+        #preloader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #020203; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease-out, visibility 0.8s; }
+        .preloader-svg { width: 100px; height: 100px; fill: var(--text-color); filter: drop-shadow(0 0 20px var(--vibranium-purple)); animation: pulse 1.5s infinite alternate; margin-bottom: 20px; }
+        .loading-text { color: var(--vibranium-glow); letter-spacing: 5px; font-weight: 700; margin-bottom: 15px; font-size: 1.2rem; text-transform: uppercase; animation: glitch 2s infinite; }
+        .progress-bar-container { width: 200px; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--vibranium-purple), var(--vibranium-blue)); box-shadow: 0 0 10px var(--vibranium-glow); animation: loadProgress 2.5s ease-in-out forwards; }
+
+        /* SPARKLES */
+        .sparkle { position: absolute; width: 4px; height: 4px; background: white; border-radius: 50%; pointer-events: none; opacity: 0; box-shadow: 0 0 10px white; }
+
+        @keyframes scan { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { transform: scale(1); filter: drop-shadow(0 0 10px var(--vibranium-purple)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 25px var(--vibranium-glow)); } 100% { transform: scale(1); filter: drop-shadow(0 0 10px var(--vibranium-purple)); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes loadProgress { 0% { width: 0%; } 40% { width: 30%; } 70% { width: 80%; } 100% { width: 100%; } }
+        @keyframes glitch { 0%, 100% { opacity: 1; } 95% { opacity: 1; } 96% { opacity: 0.8; transform: translateX(-2px); } 97% { opacity: 0.8; transform: translateX(2px); } 98% { opacity: 1; transform: translateX(0); } }
+
+        .claw-marks { position: absolute; top: 20px; right: 20px; width: 100px; height: 100px; opacity: 0.15; pointer-events: none; background: url('https://cdn-icons-png.flaticon.com/512/865/865955.png') no-repeat center/contain; transform: rotate(15deg); }
+    </style>
+</head>
+<body>
+
+    <div id="particles-js"></div>
+    <div class="hologram-line" style="top: 20%; animation: scan 8s linear infinite;"></div>
+    <div class="hologram-line" style="top: 80%; animation: scan 12s linear infinite reverse;"></div>
+
+    <div id="preloader">
+        <svg class="preloader-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM12 6C13.66 6 15 7.34 15 9C15 10.1 14.4 11.08 13.5 11.65V14H10.5V11.65C9.6 11.08 9 10.1 9 9C9 7.34 10.34 6 12 6ZM12 18C13.1 18 14 17.1 14 16H10C10 17.1 10.9 18 12 18Z" fill="currentColor"/></svg>
+        <div class="loading-text">𝙸𝙽𝙸𝚃𝙸𝙰𝙻𝙸𝚉𝙸𝙽𝙶 𝚄𝙿𝙻𝙸𝙽𝙺...</div>
+        <div class="progress-bar-container"><div class="progress-bar"></div></div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="claw-marks"></div>
+            <div class="logo-area">
+                <svg class="bp-svg" viewBox="0 0 512 512"><path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm0 472c-119.3 0-216-96.7-216-216S136.7 40 256 40s216 96.7 216 216-96.7 216-216 216z"/><path d="M368.5 160c-15-28.8-51.2-40.8-51.2-40.8l-18-5.5-43.2 24.8-43.2-24.8-18 5.5s-36.2 12-51.2 40.8c-12 23-8 55.2-8 55.2l20.5 45.2 37.8 12.2 21 35.8 41.2 82.5 41.2-82.5 21-35.8 37.8-12.2 20.5-45.2s4-32.2-8-55.2z"/></svg>
+                <h1 class="title">𝙱𝙻𝙰𝙲𝙺 𝙿𝙰𝙽𝚃𝙷𝙴𝚁</h1>
+                <p class="subtitle">𝚆𝙰𝙺𝙰𝙽𝙳𝙰 𝚂𝙴𝙲𝚄𝚁𝙴 𝚄𝙿𝙻𝙸𝙽𝙺</p>
+            </div>
+
+            <div class="input-group">
+                <label for="phoneNumber">ENTER TARGET NUMBER</label>
+                <i class="fas fa-phone input-icon"></i>
+                <input type="tel" id="phoneNumber" class="input-field" placeholder="Ex: 221770000000">
+            </div>
+
+            <button class="btn-connect" onclick="connectBot()">
+                <i class="fas fa-link"></i> INITIATE LINK
+            </button>
+
+            <div class="loader" id="loader"><i class="fas fa-circle-notch fa-spin"></i> ESTABLISHING CONNECTION...</div>
+            <div class="result-box" id="resultBox">
+                <p style="color:var(--silver); font-size:0.8rem;">PAIRING CODE RECEIVED:</p>
+                <div class="code-display" id="pairingCode">Loading...</div>
+                <p class="copy-text" onclick="copyCode()">CLICK TO COPY</p>
+            </div>
+            <div id="errorBox" style="display:none; margin-top:15px; color: #ff4757; font-weight:bold;"></div>
+
+            <button class="btn-owner" onclick="openModal()">
+                <i class="fas fa-users-cog"></i> 𝚃𝙴𝙰𝙼 𝙸𝙽𝙵𝙾
+            </button>
+
+            <div class="footer">𝙿𝙾𝚆𝙴𝚁𝙴𝙳 𝙱𝚈 𝚂𝙿𝙴𝙲𝚃𝚁𝙴<br>𝚆𝙰𝙺𝙰𝙽𝙳𝙰 𝙵𝙾𝚁𝙴𝚅𝙴𝚁</div>
+        </div>
+    </div>
+
+    <!-- MODAL TEAM INFO -->
+    <div id="ownerModal" class="modal-overlay" onclick="closeModalOutside(event)">
+        <div class="modal-card">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            
+            <!-- VUE LISTE -->
+            <div id="listView">
+                <h2 style="color:white; margin-bottom:25px; text-transform:uppercase; font-size:1.3rem;">PROJECT TEAM</h2>
+                
+                <div class="section-label">LEAD DEVELOPER</div>
+                <div class="profile-card" onclick="showProfile('dyby')">
+                    <img src="https://files.catbox.moe/9z2ixp.jpg" alt="Dyby" class="profile-avatar">
+                    <div class="profile-info">
+                        <div class="profile-name">DEV DYBY</div>
+                        <div class="profile-role">OWNER & CREATOR</div>
+                    </div>
+                </div>
+
+                <div style="height:1px; background:linear-gradient(90deg,transparent,var(--vibranium-purple),transparent); margin:15px 0 25px 0; opacity:0.3;"></div>
+
+                <div class="section-label">OWNER</div>
+                <div class="profile-card" onclick="showProfile('inconnu')">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3048/3048127.png" alt="Inconnu" class="profile-avatar">
+                    <div class="profile-info">
+                        <div class="profile-name">INCONNU BOY</div>
+                        <div class="profile-role">OWNER & CREATOR</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VUE DÉTAIL -->
+            <div id="detailView">
+                <i class="fas fa-arrow-left back-btn" onclick="hideProfile()"></i>
+                
+                <div class="detail-avatar-container">
+                    <img id="d-img" src="" class="detail-avatar">
+                </div>
+                <div id="d-name" class="detail-name">NAME</div>
+                <div id="d-role" class="detail-role">ROLE</div>
+                <div id="d-bio" class="detail-bio">Bio description...</div>
+
+                <div class="social-buttons">
+                    <a id="btn-gh" href="#" target="_blank" class="social-btn btn-github">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a id="btn-ig" href="#" target="_blank" class="social-btn btn-insta">
+                        <i class="fab fa-instagram"></i> Instagram
+                    </a>
+                    <a id="btn-wa" href="#" target="_blank" class="social-btn btn-wa">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts pour les effets -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        /* CONFIG PARTICULES */
+        particlesJS('particles-js', {
+            particles: { number: { value: 60, density: { enable: true, value_area: 800 } }, color: { value: ["#7000ff", "#3a86ff", "#00ff88"] }, shape: { type: "circle" }, opacity: { value: 0.5, random: true }, size: { value: 3, random: true }, line_linked: { enable: true, distance: 150, color: "#7000ff", opacity: 0.2, width: 1 }, move: { enable: true, speed: 2, direction: "none", random: true, out_mode: "out" } },
+            interactivity: { detect_on: "canvas", events: { onhover: { enable: true, mode: "repulse" }, onclick: { enable: true, mode: "push" } } }, retina_detect: true
+        });
+
+        /* DONNÉES DES PROFILS */
+        const profiles = {
+            'dyby': {
+                name: 'DEV DYBY',
+                role: 'OWNER',
+                img: 'https://files.catbox.moe/9z2ixp.jpg',
+                bio: 'Creator of Black Panther Bot. Full stack developer passionate about automation and Wakanda technology.',
+                github: 'https://github.com/Dyby-Tech00', 
+                instagram: 'https://instagram.com/dyby_tech',
+                whatsapp: 'https://wa.me/50948702213'
+            },
+            'inconnu': {
+                name: 'INCONNU BOY TECH',
+                role: 'OWNER',
+                img: 'https://cdn-icons-png.flaticon.com/512/3048/3048127.png',
+                bio: 'Tech enthusiast and key contributor to the Black Panther Bot project. Always coding in the shadows.',
+                github: 'https://github.com/INCONNU-BOY', 
+                instagram: 'https://instagram.com/shishi_hoshi', 
+                whatsapp: 'https://wa.me/5544988138425' 
+            }
+        };
+
+
+        /* EFFET SPARKLE */
+        document.addEventListener('click', function(e) { createSparkles(e.clientX, e.clientY); });
+        function createSparkles(x, y) {
+            for(let i=0; i<8; i++) {
+                const s = document.createElement('div'); s.classList.add('sparkle');
+                document.body.appendChild(s);
+                s.style.left = x + 'px'; s.style.top = y + 'px';
+                const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 5 + 2;
+                let op = 1; let posX = x; let posY = y;
+                const anim = () => {
+                    op -= 0.05; s.style.opacity = op;
+                    posX += Math.cos(angle) * speed; posY += Math.sin(angle) * speed;
+                    s.style.left = posX + 'px'; s.style.top = posY + 'px';
+                    if(op > 0) requestAnimationFrame(anim); else s.remove();
+                }; anim();
+            }
+        }
+
+        /* GESTION VUES */
+        function showProfile(id) {
+            const data = profiles[id];
+            document.getElementById('listView').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('d-img').src = data.img;
+                document.getElementById('d-name').innerText = data.name;
+                document.getElementById('d-role').innerText = data.role;
+                document.getElementById('d-bio').innerText = data.bio;
+                document.getElementById('btn-gh').href = data.github;
+                document.getElementById('btn-ig').href = data.instagram;
+                document.getElementById('btn-wa').href = data.whatsapp;
+                document.getElementById('listView').style.display = 'none';
+                document.getElementById('detailView').style.display = 'block';
+                document.getElementById('detailView').style.animation = 'fadeIn 0.5s ease';
+            }, 200);
+        }
+
+        function hideProfile() {
+            document.getElementById('detailView').style.display = 'none';
+            document.getElementById('listView').style.display = 'block';
+            document.getElementById('listView').style.opacity = '1';
+        }
+
+        /* LOGIQUE PRINCIPALE */
+        document.addEventListener("DOMContentLoaded", function() {
+            setTimeout(function() {
+                const preloader = document.getElementById('preloader');
+                if (preloader) { preloader.style.opacity = "0"; preloader.style.visibility = "hidden"; setTimeout(() => { preloader.style.display = 'none'; }, 800); }
+            }, 2500);
+        });
+
+        async function connectBot() {
+            const numberInput = document.getElementById('phoneNumber');
+            const loader = document.getElementById('loader');
+            const resultBox = document.getElementById('resultBox');
+            const errorBox = document.getElementById('errorBox');
+            const codeDisplay = document.getElementById('pairingCode');
+            const btn = document.querySelector('.btn-connect');
+            let number = numberInput.value.replace(/[^0-9]/g, '');
+
+            if (number.length < 7) { alert("❌ Invalid number."); return; }
+            errorBox.style.display = 'none'; resultBox.style.display = 'none';
+            loader.style.display = 'block'; btn.disabled = true; btn.style.opacity = '0.7';
+
+            try {
+                const response = await fetch(`/?number=${number}`);
+                const data = await response.json();
+                loader.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1';
+
+                if (data.code) {
+                    codeDisplay.innerText = data.code.match(/.{1,4}/g).join('-');
+                    resultBox.style.display = 'block';
+                } else if (data.status === 'already_connected') {
+                    errorBox.innerText = "⚠️ Number already connected!"; errorBox.style.display = 'block';
+                } else {
+                    errorBox.innerText = "❌ Connection failed."; errorBox.style.display = 'block';
+                }
+            } catch (error) {
+                loader.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1';
+                errorBox.innerText = "❌ Server Error."; errorBox.style.display = 'block';
+            }
+        }
+
+        function copyCode() {
+            const codeText = document.getElementById('pairingCode').innerText.replace(/-/g, '');
+            navigator.clipboard.writeText(codeText).then(() => { 
+                const originalText = document.querySelector('.copy-text').innerText;
+                document.querySelector('.copy-text').innerText = "COPIED!";
+                setTimeout(() => document.querySelector('.copy-text').innerText = originalText, 1500);
+            });
+        }
+
+        function openModal() { document.getElementById('ownerModal').style.display = 'flex'; setTimeout(() => hideProfile(), 10); }
+        function closeModal() { document.getElementById('ownerModal').style.display = 'none'; }
+        function closeModalOutside(event) { if (event.target.id === 'ownerModal') closeModal(); }
+    </script>
+</body>
+  </html>
