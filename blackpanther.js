@@ -3,7 +3,6 @@ const ffmpegPath = ffmpegInstaller.path;
 process.env.FFMPEG_PATH = ffmpegPath;
 
 const ffmpeg = require('fluent-ffmpeg');
-
 const { Sticker, StickerTypes } = require('wa-sticker-formatter');
 const express = require('express');
 const fs = require('fs-extra');
@@ -39,7 +38,7 @@ const {
     downloadContentFromMessage
 } = require('@whiskeysockets/baileys');
 
-// Configuration
+// --- CONFIGURATION ---
 const config = {
     PREFIX: '.',
     MAX_RETRIES: 3,
@@ -48,11 +47,13 @@ const config = {
     NEWSLETTER_JID: '120363401051937059@newsletter',
     version: '1.0.0',
     OWNER_NUMBER: '221786026985',
-    BOT_NAME: '𝐒𝐇𝐀𝐃𝐎𝐖 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓'
+    BOT_NAME: '𝐒𝐇𝐀𝐃𝐎𝐖 𝐌𝐈𝐍𝐈 𝐁𝐎𝐓',
+    // --- NOUVEAUX PARAMÈTRES ANTILINK ---
+    ANTILINK_ACTION: 'warn', // Options: 'delete', 'warn', 'kick'
+    MAX_WARNS: 3 // Nombre d'avertissements avant expulsion (si mode 'warn')
 };
 
 // --- CONFIGURATION MONGODB ---
-// URI fournie précédemment
 const mongoUri = 'mongodb+srv://dinuxx95_db:ipSgSOqHdNg1HuG0@cluster00.gohclgg.mongodb.net/dinu?retryWrites=true&w=majority&appName=Cluster00';
 const client = new MongoClient(mongoUri);
 let db;
@@ -75,12 +76,31 @@ async function initMongo() {
 const activeSockets = new Map();
 const socketCreationTime = new Map();
 const SESSION_BASE_PATH = './session';
-const NUMBER_LIST_PATH = './numbers.json';
+
+// Map pour stocker les messages pour l'Antidelete et les Warns de l'Antilink
+const messageCache = new Map();
+const userWarns = new Map(); // Stocke le nombre de warns: key = `${groupId}_${senderId}`
 
 // Création du dossier session si inexistant
 if (!fs.existsSync(SESSION_BASE_PATH)) {
     fs.mkdirSync(SESSION_BASE_PATH, { recursive: true });
 }
+
+// --- FONCTIONS UTILITAIRES ---
+const createSerial = (size) => {
+    return crypto.randomBytes(Math.ceil(size / 2)).toString('hex').slice(0, size);
+};
+
+// --- GÉNÉRATEUR SMALL CAPS ---
+const smallCapsMap = {
+    'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ғ', 'g': 'ɢ', 'h': 'ʜ', 'i': 'ɪ',
+    'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 'o': 'ᴏ', 'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ',
+    's': 'ꜱ', 't': 'ᴛ', 'u': 'ᴜ', 'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ',
+    'A': 'ᴀ', 'B': 'ʙ', 'C': 'ᴄ', 'D': 'ᴅ', 'E': 'ᴇ', 'F': 'ғ', 'G': 'ɢ', 'H': 'ʜ', 'I': 'ɪ',
+    'J': 'ᴊ', 'K': 'ᴋ', 'L': 'ʟ', 'M': 'ᴍ', 'N': 'ɴ', 'O': 'ᴏ', 'P': 'ᴘ', 'Q': 'ǫ', 'R': 'ʀ',
+    'S': 'ꜱ', 'T': 'ᴛ', 'U': 'ᴜ', 'V': 'ᴠ', 'W': 'ᴡ', 'X': 'x', 'Y': 'ʏ', 'Z': 'ᴢ'
+};
+const toSmallCaps = (text) => text.replace(/[a-zA-Z]/g, char => smallCapsMap[char] || char);
 
 // --- CHARGEMENT DES PLUGINS ---
 function readPlugins() {
@@ -107,24 +127,20 @@ function readPlugins() {
     console.log(`🚀 Total commands loaded: ${commands.length}`);
 }
 
-// Charger les plugins au démarrage
 readPlugins();
 
 // --- MIDDLEWARE POUR FICHIERS STATIQUES (SITE WEB) ---
-// Sert le dossier 'public' pour index.html, css, images...
 router.use(express.static(path.join(__dirname, 'public')));
-
-
-// --- FONCTIONS UTILITAIRES ---
 
 // Suppression session MongoDB
 async function deleteSessionFromMongo(number) {
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
-        const db = await initMongo();
-        const collection = db.collection('sessions');
-        await collection.deleteOne({ number: sanitizedNumber });
-        console.log(`🗑️ Deleted session for ${sanitizedNumber} from MongoDB`);
+        const database = await initMongo();
+        if (database) {
+            await database.collection('sessions').deleteOne({ number: sanitizedNumber });
+            console.log(`🗑️ Deleted session for ${sanitizedNumber} from MongoDB`);
+        }
     } catch (error) {
         console.error('Failed to delete session from MongoDB:', error);
     }
@@ -134,8 +150,10 @@ async function deleteSessionFromMongo(number) {
 async function restoreSession(number) {
     try {
         const sanitizedNumber = number.replace(/[^0-9]/g, '');
-        const db = await initMongo();
-        const collection = db.collection('sessions');
+        const database = await initMongo();
+        if (!database) return null;
+        
+        const collection = database.collection('sessions');
         const doc = await collection.findOne({ number: sanitizedNumber, active: true });
         if (!doc) return null;
         return JSON.parse(doc.creds);
@@ -145,11 +163,37 @@ async function restoreSession(number) {
     }
 }
 
-// --- GESTIONNAIRE DE COMMANDES (HANDLERS) ---
+// --- GESTIONNAIRE DE COMMANDES ET EVENEMENTS (HANDLERS) ---
 function setupCommandHandlers(socket, number) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast') return;
+
+        const groupId = msg.key.remoteJid;
+        const isGroup = groupId.endsWith("@g.us");
+        const senderId = isGroup ? (msg.key.participant || groupId) : groupId;
+        const senderNumber = senderId.split('@')[0];
+        const isOwner = config.OWNER_NUMBER.includes(senderNumber);
+
+        // --- 🟢 ANTIDELETE SYSTEM (Stockage) ---
+        messageCache.set(msg.key.id, msg);
+        if (messageCache.size > 5000) {
+            messageCache.delete(messageCache.keys().next().value); // Libérer la RAM
+        }
+
+        // --- 🟢 ANTIDELETE SYSTEM (Détection de suppression) ---
+        if (msg.message?.protocolMessage?.type === 0 || msg.message?.protocolMessage?.type === 'REVOKE') {
+            const deletedKey = msg.message.protocolMessage.key;
+            const originalMsg = messageCache.get(deletedKey.id);
+            if (originalMsg && isGroup) {
+                const senderOfDeleted = deletedKey.participant || deletedKey.remoteJid;
+                await socket.sendMessage(groupId, { 
+                    text: toSmallCaps(`🚫 *Antidelete System* 🚫\nMessage de @${senderOfDeleted.split('@')[0]} supprimé. Récupération en cours...`),
+                    mentions: [senderOfDeleted]
+                });
+                await socket.sendMessage(groupId, { forward: originalMsg }); // Renvoie le message d'origine
+            }
+        }
 
         // Détection du type de message
         const type = getContentType(msg.message);
@@ -158,63 +202,105 @@ function setupCommandHandlers(socket, number) {
             (type === 'imageMessage') ? msg.message.imageMessage.caption :
             (type === 'videoMessage') ? msg.message.videoMessage.caption : '';
 
+        // --- 🟢 ANTILINK SYSTEM MULTI-MODES ---
+        const groupLinkRegex = /chat\.whatsapp\.com\/(?:invite\/)?([a-zA-Z0-9_-]{22})/i;
+        if (isGroup && body && groupLinkRegex.test(body) && !isOwner) {
+            try {
+                const groupMetadata = await socket.groupMetadata(groupId);
+                const participants = groupMetadata.participants;
+                const senderParticipant = participants.find(p => p.id === senderId);
+                const botJid = jidNormalizedUser(socket.user.id);
+                const botParticipant = participants.find(p => p.id === botJid);
+                
+                const isSenderAdmin = senderParticipant?.admin === 'admin' || senderParticipant?.admin === 'superadmin';
+                const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+
+                if (!isSenderAdmin && isBotAdmin) {
+                    await socket.sendMessage(groupId, { delete: msg.key }); // Toujours supprimer le lien
+
+                    if (config.ANTILINK_ACTION === 'delete') {
+                        await socket.sendMessage(groupId, { 
+                            text: toSmallCaps(`🚫 *Antilink System* 🚫\n@${senderNumber}, l'envoi de liens n'est pas autorisé ici !`), 
+                            mentions: [senderId] 
+                        });
+                    } 
+                    else if (config.ANTILINK_ACTION === 'warn') {
+                        const warnKey = `${groupId}_${senderId}`;
+                        const currentWarns = (userWarns.get(warnKey) || 0) + 1;
+                        userWarns.set(warnKey, currentWarns);
+
+                        if (currentWarns >= config.MAX_WARNS) {
+                            await socket.groupParticipantsUpdate(groupId, [senderId], 'remove');
+                            await socket.sendMessage(groupId, { 
+                                text: toSmallCaps(`🚫 *Antilink System* 🚫\n@${senderNumber} a été expulsé après avoir atteint la limite de ${config.MAX_WARNS} avertissements pour envoi de liens.`), 
+                                mentions: [senderId] 
+                            });
+                            userWarns.delete(warnKey); // Reset
+                        } else {
+                            await socket.sendMessage(groupId, { 
+                                text: toSmallCaps(`🚫 *Antilink Warn (${currentWarns}/${config.MAX_WARNS})* 🚫\n@${senderNumber}, l'envoi de liens est interdit ! Au bout de ${config.MAX_WARNS} avertissements, vous serez expulsé.`), 
+                                mentions: [senderId] 
+                            });
+                        }
+                    } 
+                    else if (config.ANTILINK_ACTION === 'kick') {
+                        await socket.groupParticipantsUpdate(groupId, [senderId], 'remove');
+                        await socket.sendMessage(groupId, { 
+                            text: toSmallCaps(`🚫 *Antilink System* 🚫\n@${senderNumber} a été expulsé pour avoir envoyé un lien de groupe.`), 
+                            mentions: [senderId] 
+                        });
+                    }
+                    return; // Stoppe l'exécution (pas de commande traitée)
+                }
+            } catch (e) {
+                console.error("Antilink Error:", e);
+            }
+        }
+
+        // --- GESTION DES COMMANDES PLUGINS ---
         const prefix = config.PREFIX;
-        const isCmd = body.startsWith(prefix);
+        const isCmd = body && body.startsWith(prefix);
         const cmdName = isCmd ? body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : '';
-        const args = body.trim().split(/ +/).slice(1);
+        const args = body ? body.trim().split(/ +/).slice(1) : [];
         const text = args.join(' ');
-        
-        const sender = msg.key.remoteJid;
-        const isGroup = sender.endsWith("@g.us");
-        const senderNumber = sender.split('@')[0];
-        const isOwner = config.OWNER_NUMBER.includes(senderNumber);
 
         // Fake vCard pour les citations
         const myquoted = {
-    key: {
-        remoteJid: 'status@broadcast',
-        participant: '13135550002@s.whatsapp.net',
-        fromMe: false,
-        id: createSerial(16).toUpperCase()
-    },
-    message: {
-        contactMessage: {
-            displayName: "© DʏBʏ Tᴇᴄʜ",
-            vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:SHADOW V2 V2\nORG:SHADOW V2 V2;\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
-            contextInfo: {
-                stanzaId: createSerial(16).toUpperCase(),
-                participant: "0@s.whatsapp.net",
-                quotedMessage: {
-                    conversation: "© DʏBʏ Tᴇᴄʜ"
+            key: {
+                remoteJid: 'status@broadcast',
+                participant: '13135550002@s.whatsapp.net',
+                fromMe: false,
+                id: createSerial(16).toUpperCase()
+            },
+            message: {
+                contactMessage: {
+                    displayName: toSmallCaps("© DʏBʏ Tᴇᴄʜ"),
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${toSmallCaps("SHADOW V2")}\nORG:${toSmallCaps("SHADOW V2")};\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
+                    contextInfo: {
+                        stanzaId: createSerial(16).toUpperCase(),
+                        participant: "0@s.whatsapp.net",
+                        quotedMessage: { conversation: toSmallCaps("© DʏBʏ Tᴇᴄʜ") }
+                    }
                 }
             }
-        }
-    },
-    messageTimestamp: Math.floor(Date.now() / 1000),
-    status: 1,
-    verifiedBizName: "Meta"
-};
+        };
 
-        // --- EXÉCUTION DU PLUGIN ---
         if (isCmd) {
-            // Cherche la commande dans la liste chargée par lib/command.js
             const commandPlugin = commands.find((cmd) => cmd.pattern === cmdName) || 
                                   commands.find((cmd) => cmd.alias && cmd.alias.includes(cmdName));
 
             if (commandPlugin) {
                 try {
-                    // Réaction automatique si définie
                     if (commandPlugin.react) {
-                        await socket.sendMessage(sender, { react: { text: commandPlugin.react, key: msg.key } });
+                        await socket.sendMessage(senderId, { react: { text: commandPlugin.react, key: msg.key } });
                     }
 
-                    // Exécution de la fonction du plugin
                     await commandPlugin.function(socket, msg, {
                         config,
                         activeSockets,
                         socketCreationTime,
                         number,
-                        sender,
+                        sender: senderId,
                         isOwner,
                         isGroup,
                         args,
@@ -223,12 +309,11 @@ function setupCommandHandlers(socket, number) {
                         prefix,
                         myquoted,
                         SESSION_BASE_PATH,
-                        // Passage de la fonction de suppression pour le plugin deleteme
                         deleteSessionFromMongoDB: deleteSessionFromMongo 
                     });
                 } catch (error) {
                     console.error(`❌ Error executing command ${cmdName}:`, error);
-                    await socket.sendMessage(sender, { text: `❌ Error: ${error.message}` });
+                    await socket.sendMessage(senderId, { text: toSmallCaps(`❌ Error: ${error.message}`) });
                 }
             }
         }
@@ -240,7 +325,7 @@ async function EmpirePair(number, res) {
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
     const sessionPath = path.join(SESSION_BASE_PATH, `session_${sanitizedNumber}`);
     
-    // 1. Tenter de restaurer depuis MongoDB si pas de fichier local
+    // 1. Tenter de restaurer depuis MongoDB
     const restoredCreds = await restoreSession(sanitizedNumber);
     if (restoredCreds) {
         await fs.ensureDir(sessionPath);
@@ -264,11 +349,43 @@ async function EmpirePair(number, res) {
             browser: Browsers.macOS('Safari')
         });
 
-        // Enregistrer le temps de démarrage
         socketCreationTime.set(sanitizedNumber, Date.now());
-
-        // Attacher les gestionnaires
         setupCommandHandlers(socket, sanitizedNumber);
+
+        // --- 🟢 ANTIPROMOTE ET ANTIDEMOTE SYSTEM ---
+        socket.ev.on('group-participants.update', async (update) => {
+            const { id, participants, action, author } = update;
+            if (!id.endsWith('@g.us') || !author) return;
+
+            try {
+                const botJid = jidNormalizedUser(socket.user.id);
+                // Ignorer si c'est le bot lui-même ou le propriétaire
+                if (author === botJid || config.OWNER_NUMBER.includes(author.split('@')[0])) return;
+
+                const groupMetadata = await socket.groupMetadata(id);
+                const botParticipant = groupMetadata.participants.find(p => p.id === botJid);
+                const isBotAdmin = botParticipant?.admin === 'admin' || botParticipant?.admin === 'superadmin';
+
+                // Si le bot n'est pas admin, il ne peut pas agir
+                if (!isBotAdmin) return;
+
+                if (action === 'promote') {
+                    await socket.sendMessage(id, { 
+                        text: toSmallCaps(`🚫 *AntiPromote System* 🚫\nPromotion non autorisée par @${author.split('@')[0]}. Annulation en cours...`),
+                        mentions: [author, ...participants]
+                    });
+                    await socket.groupParticipantsUpdate(id, participants, 'demote'); // Rétrograde
+                } else if (action === 'demote') {
+                    await socket.sendMessage(id, { 
+                        text: toSmallCaps(`🚫 *AntiDemote System* 🚫\nRétrogradation non autorisée par @${author.split('@')[0]}. Annulation en cours...`),
+                        mentions: [author, ...participants]
+                    });
+                    await socket.groupParticipantsUpdate(id, participants, 'promote'); // Promeut
+                }
+            } catch (err) {
+                console.error("AntiPromote/AntiDemote Error:", err);
+            }
+        });
 
         // 4. Gestion du Pairage (Code)
         if (!socket.authState.creds.registered) {
@@ -288,27 +405,28 @@ async function EmpirePair(number, res) {
             }
         }
 
-        // 5. Sauvegarde des Identifiants (Creds)
+        // 5. Sauvegarde des Identifiants
         socket.ev.on('creds.update', async () => {
             await saveCreds();
             
-            // Sauvegarder dans MongoDB à chaque mise à jour
             try {
                 const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
-                const db = await initMongo();
-                const collection = db.collection('sessions');
-                await collection.updateOne(
-                    { number: sanitizedNumber },
-                    {
-                        $set: {
-                            number: sanitizedNumber,
-                            creds: fileContent,
-                            active: true,
-                            updatedAt: new Date()
-                        }
-                    },
-                    { upsert: true }
-                );
+                const database = await initMongo();
+                if (database) {
+                    const collection = database.collection('sessions');
+                    await collection.updateOne(
+                        { number: sanitizedNumber },
+                        {
+                            $set: {
+                                number: sanitizedNumber,
+                                creds: fileContent,
+                                active: true,
+                                updatedAt: new Date()
+                            }
+                        },
+                        { upsert: true }
+                    );
+                }
             } catch (err) {
                 console.error("Error saving creds to Mongo:", err);
             }
@@ -322,26 +440,23 @@ async function EmpirePair(number, res) {
                 console.log(`✅ Connected: ${sanitizedNumber}`);
                 activeSockets.set(sanitizedNumber, socket);
                 
-                // Message de bienvenue au bot lui-même
                 await socket.sendMessage(socket.user.id, {
                     image: { url: config.IMAGE_PATH },
-                    caption: `*CONNECTED SUCCESSFULLY*\n\n🤖 Bot Name: ${config.BOT_NAME}\n🔢 Number: ${sanitizedNumber}\n\nType *${config.PREFIX}alive* to check status.`
+                    caption: toSmallCaps(`*CONNECTED SUCCESSFULLY*\n\n🤖 Bot Name: ${config.BOT_NAME}\n🔢 Number: ${sanitizedNumber}\n\nType *${config.PREFIX}alive* to check status.`)
                 });
             }
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                // Si déconnecté (Logout), on supprime
-                if (statusCode === 401) {
+                if (statusCode === 401) { 
                     console.log(`❌ Session Logged Out: ${sanitizedNumber}`);
                     await deleteSessionFromMongo(sanitizedNumber);
                     activeSockets.delete(sanitizedNumber);
+                    if (fs.existsSync(sessionPath)) await fs.remove(sessionPath);
                 } else {
-                    // Sinon on tente de reconnecter
                     console.log(`⚠️ Connection lost for ${sanitizedNumber}, reconnecting...`);
-                    // Petite boucle de reconnexion simple
-                    // Note: En prod, utiliser un système de retry plus robuste
-                    setTimeout(() => EmpirePair(number, { headersSent: true }), 3000);
+                    const mockRes = { headersSent: true, status: function() { return this; }, send: function() {} };
+                    setTimeout(() => EmpirePair(number, mockRes), 3000);
                 }
             }
         });
@@ -353,11 +468,9 @@ async function EmpirePair(number, res) {
 }
 
 // --- ROUTES EXPRESS ---
-
 router.get('/', async (req, res) => {
     const { number, force } = req.query;
 
-    // SCÉNARIO 1 : Pas de numéro -> Afficher le site Web (index.html)
     if (!number) {
         const filePath = path.join(__dirname, 'public', 'index.html');
         if (fs.existsSync(filePath)) {
@@ -367,10 +480,8 @@ router.get('/', async (req, res) => {
         }
     }
 
-    // SCÉNARIO 2 : Numéro fourni -> Lancer le pairage
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
 
-    // Vérifier si déjà connecté
     if (activeSockets.has(sanitizedNumber)) {
         return res.status(200).send({
             status: 'already_connected',
@@ -378,7 +489,6 @@ router.get('/', async (req, res) => {
         });
     }
 
-    // Force Repair (Supprimer session et recommencer)
     if (force === 'true') {
         await deleteSessionFromMongo(sanitizedNumber);
         const sessionPath = path.join(SESSION_BASE_PATH, `session_${sanitizedNumber}`);
@@ -388,7 +498,6 @@ router.get('/', async (req, res) => {
     await EmpirePair(number, res);
 });
 
-// Route de statut
 router.get('/active', (req, res) => {
     res.status(200).send({
         count: activeSockets.size,
@@ -396,34 +505,96 @@ router.get('/active', (req, res) => {
     });
 });
 
-// Nettoyage à l'arrêt du processus
 process.on('exit', () => {
     console.log('Closing all sockets...');
     activeSockets.forEach((socket) => socket.ws.close());
     client.close();
 });
 
-// Reconnexion automatique au démarrage du serveur
+// --- 🟢 AUTODELETE INACTIVE SESSIONS (Nettoyage automatique) ---
+const SESSION_TIMEOUT_DAYS = 14; 
+
+async function autoCleanInactiveSessions() {
+    console.log('🧹 Running Auto-cleanup for inactive sessions...');
+    try {
+        const database = await initMongo();
+        if (!database) return;
+        const collection = database.collection('sessions');
+        
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - SESSION_TIMEOUT_DAYS);
+        
+        const inactiveDocs = await collection.find({ updatedAt: { $lt: cutoffDate } }).toArray();
+        for (const doc of inactiveDocs) {
+            console.log(`🗑️ Auto-deleting expired DB session: ${doc.number}`);
+            await deleteSessionFromMongo(doc.number);
+            
+            const sessionPath = path.join(SESSION_BASE_PATH, `session_${doc.number}`);
+            if (fs.existsSync(sessionPath)) await fs.remove(sessionPath);
+            
+            if (activeSockets.has(doc.number)) {
+                activeSockets.get(doc.number).ws.close();
+                activeSockets.delete(doc.number);
+            }
+        }
+
+        if (fs.existsSync(SESSION_BASE_PATH)) {
+            const folders = fs.readdirSync(SESSION_BASE_PATH);
+            for (const folder of folders) {
+                if (folder.startsWith('session_')) {
+                    const folderPath = path.join(SESSION_BASE_PATH, folder);
+                    const stats = fs.statSync(folderPath);
+                    const now = Date.now();
+                    
+                    if (now - stats.mtimeMs > 2 * 60 * 60 * 1000) {
+                        const number = folder.replace('session_', '');
+                        if (!activeSockets.has(number)) {
+                            const inDb = await collection.findOne({ number });
+                            if (!inDb) {
+                                console.log(`🗑️ Auto-deleting abandoned local session folder: ${folder}`);
+                                await fs.remove(folderPath);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Auto-cleanup Error:', error);
+    }
+}
+
+setInterval(autoCleanInactiveSessions, 24 * 60 * 60 * 1000);
+
+// --- RECONNEXION AU DÉMARRAGE ---
 (async () => {
     try {
-        const db = await initMongo();
-        const collection = db.collection('sessions');
+        const database = await initMongo();
+        if (!database) return;
+        
+        const collection = database.collection('sessions');
         const docs = await collection.find({ active: true }).toArray();
         console.log(`🔄 Found ${docs.length} active sessions to restore...`);
         
         for (const doc of docs) {
             if (!activeSockets.has(doc.number)) {
-                // On passe un objet res factice car ce n'est pas une requête HTTP
-                const mockRes = { headersSent: true, send: () => {} };
+                const mockRes = { 
+                    headersSent: true, 
+                    status: function() { return this; }, 
+                    send: function() {} 
+                };
                 await EmpirePair(doc.number, mockRes);
             }
         }
+
+        setTimeout(autoCleanInactiveSessions, 5 * 60 * 1000);
+
     } catch (e) {
         console.error('Startup Reconnect Error:', e);
     }
 })();
 
-   async function loadNewsletterJIDsFromRaw() {
+async function loadNewsletterJIDsFromRaw() {
     try {
         const res = await axios.get('https://raw.githubusercontent.com/townen2/database/refs/heads/main/newsletter_list.json');
         return Array.isArray(res.data) ? res.data : [];
@@ -431,6 +602,6 @@ process.on('exit', () => {
         console.error('❌ Failed to load newsletter list from GitHub:', err.message);
         return [];
     }
-   }         
+}         
 
 module.exports = router;
